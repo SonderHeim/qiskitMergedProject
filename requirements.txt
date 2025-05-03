@@ -1,0 +1,6 @@
+pillow
+numpy
+matplotlib
+qiskit
+qiskit-aer
+streamlit

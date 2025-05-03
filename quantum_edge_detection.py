@@ -86,7 +86,7 @@ def extract_edges(statevec: np.ndarray, data_qubits: int) -> np.ndarray:
 
 def main():
     # Путь к входному изображению: по умолчанию Apple3.jpg или передается аргументом
-    input_path = sys.argv[1] if len(sys.argv) > 1 else 'Apple3.jpg'
+    input_path = sys.argv[1] if len(sys.argv) > 1 else 'Apple3.png'
     size = (32, 32)
 
     # Шаг 1: ресайзинг RGB-изображения
