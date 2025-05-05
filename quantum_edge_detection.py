@@ -21,9 +21,7 @@ def resize_image(input_path: str, size: tuple = (32, 32)) -> np.ndarray:
 
 
 def plot_image(image_array: np.ndarray, title: str) -> None:
-    """
-    Визуализирует 2D или 3D массив как изображение с заголовком.
-    """
+    # Визуализирует 2D или 3D массив как изображение с заголовком.
     plt.figure()
     plt.title(title)
     plt.axis('off')
@@ -32,18 +30,14 @@ def plot_image(image_array: np.ndarray, title: str) -> None:
 
 
 def amplitude_encode(img_data: np.ndarray) -> np.ndarray:
-    """
-    Нормализует данные для амплитудной кодировки.
-    """
+    # Нормализует данные для амплитудной кодировки.
     flat = img_data.flatten().astype(np.float64)
     norm = np.linalg.norm(flat)
     return flat / norm if norm > 0 else flat
 
 
 def build_circuit(coeffs: np.ndarray, data_qubits: int, ancilla_qubits: int = 1) -> QuantumCircuit:
-    """
-    Строит квантовую схему с инициализацией и операциями для сканирования.
-    """
+    # Строит квантовую схему с инициализацией и операциями для сканирования.
     total_qubits = data_qubits + ancilla_qubits
     qc = QuantumCircuit(total_qubits)
     qc.initialize(coeffs, list(range(ancilla_qubits, total_qubits)))
@@ -57,9 +51,7 @@ def build_circuit(coeffs: np.ndarray, data_qubits: int, ancilla_qubits: int = 1)
 
 
 def run_simulator(circuits: list) -> list:
-    """
-    Запускает схемы на statevector-симуляторе и возвращает векторы состояний.
-    """
+    # Запускает схемы на statevector-симуляторе и возвращает векторы состояний.
     sim = AerSimulator(method='statevector')
     transpiled = transpile(circuits, sim)
     job = sim.run(transpiled)
@@ -86,7 +78,7 @@ def extract_edges(statevec: np.ndarray, data_qubits: int) -> np.ndarray:
 
 def main():
     # Путь к входному изображению: по умолчанию Apple3.jpg или передается аргументом
-    input_path = sys.argv[1] if len(sys.argv) > 1 else 'Apple3.png'
+    input_path = sys.argv[1] if len(sys.argv) > 1 else 'img.png'
     size = (32, 32)
 
     # Шаг 1: ресайзинг RGB-изображения
