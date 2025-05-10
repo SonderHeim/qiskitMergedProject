@@ -19,7 +19,7 @@ from quantum_edge_detection import (
 st.title("Квантовое обнаружение границ + классификация")
 
 # Загрузчик файла
-uploader = st.file_uploader("Загрузите изображение", type=["jpg", "png", "jpeg"])
+uploader = st.file_uploader("Загрузите изображение(я)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
 
 # Вспомогательная функция визуализации через matplotlib с ближайшей интерполяцией
 def show_image_matplotlib(img_array, cmap=None, title=None, figsize=(4, 4)):
@@ -30,55 +30,53 @@ def show_image_matplotlib(img_array, cmap=None, title=None, figsize=(4, 4)):
     ax.imshow(img_array, cmap=cmap, interpolation='nearest')
     st.pyplot(fig)
 
-# Инициализация состояния
-if 'run_edge_detection' not in st.session_state:
-    st.session_state.run_edge_detection = False
+if uploader:
+    files = uploader if isinstance(uploader, list) else [uploader]
+    st.subheader("Предварительный просмотр")
+    for f in files:
+        img = Image.open(f)
+        show_image_matplotlib(np.array(img), title=f.name)
 
-if uploader is not None:
-    # Сразу читаем PIL-образ для классификации
-    preview_img = Image.open(uploader)
-
-    # Предварительный просмотр до обработки
-    if not st.session_state.run_edge_detection:
-        st.subheader("Предварительный просмотр")
-        show_image_matplotlib(np.array(preview_img), title="Загруженное изображение")
-
-    # Кнопка запуска обработки
-    if st.button("Запустить детектирование"):
-        st.session_state.run_edge_detection = True
-
-    if st.session_state.run_edge_detection:
-        # 1) Сохраняем загруженный файл во временный файл
-        tfile = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        uploader.seek(0)
-        tfile.write(uploader.read())
-        tfile.flush()
-
-        # 2) Квантовое обнаружение границ
-        rgb = resize_image(tfile.name).astype(np.uint8)
-        gray = np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
-        data_qubits = int(np.log2(gray.size))
-        coeffs_h = amplitude_encode(gray)
-        coeffs_v = amplitude_encode(gray.T)
-        qc_h = build_circuit(coeffs_h, data_qubits)
-        qc_v = build_circuit(coeffs_v, data_qubits)
-        with st.spinner("Запуск квантовой симуляции..."):
-            statevecs = run_simulator([qc_h, qc_v])
-
-        h_edges = extract_edges(statevecs[0], data_qubits)
-        v_edges = extract_edges(statevecs[1], data_qubits).T
-        edge_img = ((h_edges | v_edges) * 255).astype(np.uint8)
-
-        st.subheader("Результат квантового обнаружения границ")
-        show_image_matplotlib(edge_img, cmap='gray')
-
-        # 3) Классификация исходного изображения
+    if st.button("Запустить детектирование для всех"):
         model, device = load_model()
-        label = predict_image(model, device, preview_img)
+        for f in files:
+            st.markdown(f"---\n## Обработка {f.name}")
+            # 1) Сохраняем загруженный файл во временный файл
+            tfile = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            f.seek(0)
+            tfile.write(f.read())
+            tfile.flush()
 
-        st.subheader("Классификация")
-        st.markdown(f"**{label.upper()}**")
+            # 2) Квантовое обнаружение границ
+            rgb = resize_image(tfile.name).astype(np.uint8)
+            gray = np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
+            data_qubits = int(np.log2(gray.size))
+            coeffs_h = amplitude_encode(gray)
+            coeffs_v = amplitude_encode(gray.T)
+            qc_h = build_circuit(coeffs_h, data_qubits)
+            qc_v = build_circuit(coeffs_v, data_qubits)
 
-        st.success("Обработка завершена.")
+            progress = st.progress(0)
+            statevecs = []
+            for idx, qc in enumerate([qc_h, qc_v], 1):
+                with st.spinner(f"Симуляция {idx}/2 для {f.name}..."):
+                    res = run_simulator([qc])
+                    statevecs.append(res[0])
+                progress.progress(idx * 50)
+            progress.empty()
+
+            h_edges = extract_edges(statevecs[0], data_qubits)
+            v_edges = extract_edges(statevecs[1], data_qubits).T
+            edge_img = ((h_edges | v_edges) * 255).astype(np.uint8)
+
+            st.subheader(f"Результат квантового обнаружения границ: {f.name}")
+            show_image_matplotlib(edge_img, cmap='gray')
+
+            # 3) Классификация исходного изображения
+            label = predict_image(model, device, Image.open(f))
+            st.subheader(f"Классификация: {f.name}")
+            st.markdown(f"**{label.upper()}**")
+
+        st.success("Обработка всех изображений завершена.")
 else:
-    st.info("Пожалуйста, загрузите изображение для анализа.")
+    st.info("Пожалуйста, загрузите одно или несколько изображений.")
