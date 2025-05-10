@@ -79,7 +79,7 @@ def extract_edges(statevec: np.ndarray, data_qubits: int) -> np.ndarray:
 
 
 def main():
-    input_path = sys.argv[1] if len(sys.argv) > 1 else 'img_1.png'
+    input_path = sys.argv[1] if len(sys.argv) > 1 else 'carBlack.png'
     size = (256, 256)
 
     # Шаг 1: загрузка и ресайзинг

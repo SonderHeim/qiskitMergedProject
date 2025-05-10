@@ -4,7 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-# Импортируем функции из основного модуля
+# Классификатор
+from infer_integration import load_model, predict_image
+
+# Квантовые функции
 from quantum_edge_detection import (
     resize_image,
     amplitude_encode,
@@ -13,8 +16,7 @@ from quantum_edge_detection import (
     extract_edges,
 )
 
-# Интерфейс Streamlit
-st.title("Квантовое детектирование границ")
+st.title("Квантовое обнаружение границ + классификация")
 
 # Загрузчик файла
 uploader = st.file_uploader("Загрузите изображение", type=["jpg", "png", "jpeg"])
@@ -32,30 +34,27 @@ def show_image_matplotlib(img_array, cmap=None, title=None, figsize=(4, 4)):
 if 'run_edge_detection' not in st.session_state:
     st.session_state.run_edge_detection = False
 
-# Если файл загружен
 if uploader is not None:
-    # Показываем превью, если пока не запускали детектирование
-    if not st.session_state.run_edge_detection:
-        try:
-            preview_img = Image.open(uploader)
-            st.subheader("Предварительный просмотр")
-            show_image_matplotlib(np.array(preview_img), title="Загруженное изображение")
-        except Exception:
-            st.warning("Не удалось отобразить превью изображения.")
+    # Сразу читаем PIL-образ для классификации
+    preview_img = Image.open(uploader)
 
-    # Кнопка запуска детектирования
+    # Предварительный просмотр до обработки
+    if not st.session_state.run_edge_detection:
+        st.subheader("Предварительный просмотр")
+        show_image_matplotlib(np.array(preview_img), title="Загруженное изображение")
+
+    # Кнопка запуска обработки
     if st.button("Запустить детектирование"):
         st.session_state.run_edge_detection = True
 
-    # Когда кнопка нажата, выполняем детектирование и скрываем превью
     if st.session_state.run_edge_detection:
-        # Сохраняем файл во временную директорию
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        # 1) Сохраняем загруженный файл во временный файл
+        tfile = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         uploader.seek(0)
         tfile.write(uploader.read())
         tfile.flush()
 
-        # Обработка: вычисление карты границ
+        # 2) Квантовое обнаружение границ
         rgb = resize_image(tfile.name).astype(np.uint8)
         gray = np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
         data_qubits = int(np.log2(gray.size))
@@ -70,9 +69,16 @@ if uploader is not None:
         v_edges = extract_edges(statevecs[1], data_qubits).T
         edge_img = ((h_edges | v_edges) * 255).astype(np.uint8)
 
-        # Отображаем только итоговые границы
-        st.subheader("Итоговые границы")
+        st.subheader("Результат квантового обнаружения границ")
         show_image_matplotlib(edge_img, cmap='gray')
+
+        # 3) Классификация исходного изображения
+        model, device = load_model()
+        label = predict_image(model, device, preview_img)
+
+        st.subheader("Классификация")
+        st.markdown(f"**{label.upper()}**")
+
         st.success("Обработка завершена.")
 else:
     st.info("Пожалуйста, загрузите изображение для анализа.")
